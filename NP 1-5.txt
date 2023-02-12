@@ -1,0 +1,524 @@
+termwork 1 a
+
+#include<unistd.h>
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+int main(){
+	int fd[2],n;
+	char buffer[100];
+	pid_t p;
+	pipe(fd);
+	p = fork();
+	
+	if(p>0){
+		printf("parent pid : %d",getpid());
+		printf("child pid : %d",p);
+		printf("Message passing to child");
+		write(fd[1],"hello i am parent",17);
+		}
+	else{
+		printf("child pid : %d",getpid());
+		printf("parent pid : %d",getppid());
+		n = read(fd[0],buffer,100);
+		printf("child received the data \n");
+		write(1,buffer,n);
+		}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+termwork-1b 
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/ipc.h>
+#include<sys/msg.h>
+#define MAX 10
+
+struct mesg_buffer{
+long mesg_type;
+char mesg_text[100];
+}message;
+
+int main(){
+	key_t k;
+	int msgid;
+	k = ftok("progfile",65);
+	msgid = msgget(k,0666|IPC_CREAT);
+	msgrcv(msgid,&message,sizeof(message),1,0);
+	printf("data received : %s \n",message.mesg_text);
+	msgctl(msgid,IPC_RMID,NULL);
+	return 0;
+}
+
+termwork 1-b client
+
+#include<sys/msg.h>
+#include<sys/ipc.h>
+#include<stdio.h>
+#include<stdlib.h>
+#define MAX 10
+
+struct mesg_buffer{
+	long mesg_type;
+	char mesg_text[100];
+}message;
+
+int main(){
+	key_t k;
+	int msgid;
+	k = ftok("progfile",65);
+	msgid = msgget(k, 0666|IPC_CREAT);
+	message.mesg_type = 1;
+	printf("write data:\n");
+	fgets(message.mesg_text,MAX,stdin);
+	msgsnd(msgid,&message,sizeof(message),0);
+	printf("message sent : %s\n",message.mesg_text);
+	return 0;
+	}	
+	
+
+
+
+
+
+
+
+	
+termwork 2 server
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/socket.h>
+#include<sys/types.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+
+#define PORT 4444
+int main(){
+	int sockfd,connfd;
+	char buffer[100];
+	struct sockaddr_in servaddr,cliaddr;
+	socklen_t clilen = sizeof(cliaddr);
+	sockfd = socket(AF_INET,SOCK_STREAM,0);
+	bzero(&servaddr,sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_port = htons(PORT);
+	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	bind(sockfd,(struct sockaddr*)&servaddr,sizeof(servaddr));
+	printf("Binded successfully to port number : %d\n",PORT);
+	listen(sockfd,5);
+	connfd = accept(sockfd,(struct sockaddr*)&cliaddr,&clilen);
+	printf("Connected Successfully \n");
+	recv(connfd,buffer,1024,0);
+	printf("received data : %s\n",buffer);
+	strcpy(buffer,"HELLO");
+	send(connfd,buffer,strlen(buffer),0);
+	printf("Sent data : %s\n",buffer);
+	printf("Connection closed successfully\n");
+	return 0;
+}
+
+termwork 2 client
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<sys/socket.h>
+#include<sys/types.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+ 
+#define PORT 4444
+
+int main(){
+int sockfd = socket(AF_INET,SOCK_STREAM,0);
+char buffer[1024];
+struct sockaddr_in servaddr;
+bzero(&servaddr,sizeof(servaddr));
+servaddr.sin_family = AF_INET;
+servaddr.sin_port = htons(PORT);
+servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+connect(sockfd,(struct sockaddr*)&servaddr,sizeof(servaddr));
+printf("Connected successfully\n");
+printf("write data to be sent : \n");
+fgets(buffer,1024,stdin);
+send(sockfd,buffer,strlen(buffer),0);
+printf("data sent : %s\n",buffer);
+recv(sockfd,buffer,1024,0);
+printf("data received : %s\n",buffer);
+printf("connection closed\n");
+return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+termwork 3 
+
+
+#include<stdio.h>
+#define nul 1000
+#define nodes 10
+struct node{
+int a[nodes][4];
+}router[nodes];
+int no;
+void init(int r){
+int i;
+for(i=1;i<=no;i++){
+	router[r].a[i][1] = i;
+	router[r].a[i][2] = 999;
+	router[r].a[i][3] = nul;
+	}
+	router[r].a[r][2] = 0;
+	router[r].a[r][3] = r;
+}
+
+void inp(int r){
+int i;
+printf("Enter the distance from node %d to other nodes",r);
+printf("  if no direct connections then specify 999\n\n");
+for(i=1;i<=no;i++)
+{
+	if(i!=r){
+	printf("Enter the distance to the other node %d : ",i);
+	scanf("%d",&router[r].a[i][2]);
+	router[r].a[i][3] = i;
+	}
+}
+}
+
+void display(int r){
+int i;
+printf("\n\nThe routing table of node %d is as follows\n",r);
+for(i=1;i<=no;i++){
+if(router[r].a[i][2] >= 999){
+	printf("\n\t\t\t%d\tno-link\t\tno-hop",router[r].a[i][1]);
+}
+else
+{
+	printf("\n\t\t\t%d\t%d\t\t%d",router[r].a[i][1],router[r].a[i][2],router[r].a[i][3]);
+}
+}
+}
+
+void dv_algo(int r){
+int i,j,z;
+for(i=1;i<=no;i++){
+	if(router[r].a[i][2] != 999 && router[r].a[i][2] !=0){
+	for(j=1;j<=no;j++){
+		z = router[r].a[i][2] + router[i].a[j][2];
+		if(router[r].a[j][2] > z){
+		router[r].a[j][2] = z;
+		router[r].a[j][3] = i;
+		}
+	}
+}
+}
+}
+
+int main(){
+int i,x,y;
+char choice ='y';
+printf("Enter the number of nodes : \n");
+scanf("%d",&no);
+for(i=1;i<=no;i++){
+	init(i);
+	inp(i);
+}
+printf("\n\nThe routing table after initialization\n");
+for(i=1;i<=no;i++){
+	display(i);}
+for(i=1;i<=no;i++){
+	dv_algo(i);}
+printf("\n\nThe routing table after distance computation\n");
+for(i=1;i<=no;i++){
+display(i);
+}
+while(choice!='n'){
+	printf("\nEnter the nodes of whose shortest distance you want to know : \n");
+	scanf("%d %d",&x,&y);
+	printf("%d\n",router[x].a[y][2]);
+	printf("continue ?(y/n)\n");
+	scanf("%s",&choice);
+}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+termwork -4 server
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<sys/socket.h>
+#include<sys/types.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#define PORT 8080
+#define MAXLINE 1024
+
+int main(){
+int sockfd,len;
+char buffer[MAXLINE],msg[MAXLINE]="exit";
+struct sockaddr_in servaddr,cliaddr;
+len = sizeof(cliaddr);
+if((sockfd = socket(AF_INET,SOCK_DGRAM,0))<0)
+{
+	perror("Socket creation error");
+	exit(0);
+}
+bzero(&servaddr,sizeof(servaddr));
+bzero(&servaddr,sizeof(servaddr));
+servaddr.sin_family = AF_INET;
+servaddr.sin_port = htons(PORT);
+servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+if(bind(sockfd,(const struct sockaddr*)&servaddr,sizeof(servaddr))<0){
+perror("Bind unsuccessful");
+exit(0);
+}
+printf("Binded to port : %d\n",PORT);
+printf("Binded successfully\n");
+while(1){
+recvfrom(sockfd,(char*)buffer,MAXLINE,MSG_WAITALL,(const struct sockaddr*)&cliaddr,&len);
+printf("Data received from client : %s\n",buffer);
+printf("Write the data to be sent to client\n");
+fgets(buffer,sizeof(buffer),stdin);
+int n = strlen(buffer);
+buffer[n-1] = '\0';
+if(strcmp(buffer,msg) == 0){
+	printf("Connection terminated from %S: %d\n",inet_ntoa(cliaddr.sin_addr),ntohs(cliaddr.sin_port));
+	break;
+	}
+else{
+	sendto(sockfd,buffer,n,MSG_CONFIRM,(const struct sockaddr*)&cliaddr,len);
+	printf("Message sent\n");
+	}
+	}
+	close(sockfd);
+	return 0;
+}
+
+
+
+termwork 4 client
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<sys/socket.h>
+#include<sys/types.h>
+#include<arpa/inet.h>
+#include<netinet/in.h>
+#define PORT 8080
+#define MAXLINE 1024
+int main(){
+int sockfd;
+char buffer[MAXLINE],msg[MAXLINE] = "exit";
+struct sockaddr_in servaddr;
+
+if((sockfd = socket(AF_INET,SOCK_DGRAM,0))<0){
+perror("Socket creation unsuccessfull\n");
+exit(0);
+}
+printf("Socket creation successfull\n");
+bzero(&servaddr,sizeof(servaddr));
+servaddr.sin_family = AF_INET;
+servaddr.sin_port = htons(PORT);
+servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+int len = sizeof(servaddr);
+while(1){
+printf("Enter the message to be sent to server :\n");
+fgets(buffer,MAXLINE,stdin);
+int n = strlen(buffer);
+buffer[n-1] = '\0';
+sendto(sockfd,buffer,n,MSG_CONFIRM,(const struct sockaddr*)&servaddr,sizeof(servaddr));
+if(strcmp(buffer,msg) == 0){
+close(sockfd);
+printf("Connection terminated\n");
+exit(1);
+}
+else{
+bzero(buffer,MAXLINE);
+recvfrom(sockfd,(char*)buffer,MAXLINE,MSG_WAITALL,(const struct sockaddr*)&servaddr,&len);
+printf("Data received : %s\n",buffer);
+}
+}
+close(sockfd);
+return 0;
+}
+
+
+
+
+
+
+
+termwork 5 server
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#define PORT 4444
+void main(){
+int sockfd;
+struct sockaddr_in serverAddr;
+int newSocket;
+  	struct sockaddr_in newAddr;
+  	socklen_t addr_size;
+  	char buffer[1024];
+ 
+  	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  	printf("[+]Server Socket Created Sucessfully.\n");
+  	memset(&serverAddr, '\0', sizeof(serverAddr));
+ 
+  	serverAddr.sin_family = AF_INET;
+  	serverAddr.sin_port = htons(PORT);
+  	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  	bind(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+  	printf("[+]Bind to Port number %d.\n", 4455);
+  	listen(sockfd, 5);
+  	printf("[+]Listening...\n");
+ 
+  	newSocket = accept(sockfd, (struct sockaddr*)&newAddr, &addr_size);
+  	strcpy(buffer, "Hello from the server.");
+  	send(newSocket, buffer, strlen(buffer), 0);
+  	printf("[+]Closing the connection.\n");
+}
+
+
+
+termwork 5 client
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#define PORT 4444
+void main(){
+  	int clientSocket;
+  	struct sockaddr_in serverAddr;
+  	char buffer[1024];
+ 
+  	clientSocket = socket(PF_INET, SOCK_STREAM, 0);
+  	printf("[+]Client Socket Created Sucessfully.\n");
+  	memset(&serverAddr, '\0', sizeof(serverAddr));
+  	serverAddr.sin_family = AF_INET;
+  	serverAddr.sin_port = htons(PORT);
+  	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  	connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+  	printf("[+]Connected to Server.\n");
+  	recv(clientSocket, buffer, 1024, 0);
+  	printf("[+]Data Recv: %s\n", buffer);
+  	printf("[+]Closing the connection.\n");
+}
+
+
